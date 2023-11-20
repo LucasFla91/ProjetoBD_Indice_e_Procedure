@@ -1,0 +1,204 @@
+-- drop database ecommerce;
+create database ecommerce;
+
+use ecommerce;
+
+-- criar tabela cliente
+
+create table Clients(
+	idClient int primary key,
+    ClientType enum ('PF', 'PJ'),
+    Address varchar(255)
+);
+
+alter table Clients auto_increment = 1;
+
+create table ClientPF(
+    idClient_PF int primary key,
+    Fname varchar(15),
+    Minit char(3),
+    Lname varchar(15),
+    CPF char(11) not null,
+    constraint unique_cpf_clientPF unique(CPF),
+	constraint fk_id_client_pf foreign key (idClient_PF) references Clients(idClient)
+);
+
+create table ClientPJ(
+	idClient_PJ int primary key,
+    corporateName varchar(30),
+    fantasyName varchar(30),
+    CNPJ char(14) not null,
+    constraint unique_cnpj_clientPJ unique(CNPJ),
+    constraint fk_id_client_pj foreign key (idClient_PJ) references Clients(idClient)
+);
+
+desc Clients;
+-- criar tabela produto
+
+create table Product(
+	idProduct int auto_increment primary key,
+    Pname varchar(30) not null,
+    classification_kids bool default false,
+    category enum ('Eletrônico', 'Vestimenta', 'Brinquedos', 'Alimentos', 'Móveis') not null,
+    avaliação float default 0,
+    size varchar(10)
+);
+
+alter table Product auto_increment = 1;
+
+desc Product;
+-- para ser continuado no desafio: termine de implementar a tabela e crie a conexão com as tabelas necessárias
+-- além disso reflita essa modificação no diagrama de esquema relacional.
+
+create table payments(
+	idClient int,
+    idPayment int,
+    typePayment enum('Boleto', 'Cartão', 'Dois cartões'),
+    limitAvailable float,
+    primary key (idClient, idPayment)
+);
+
+-- criar tabela pedidos
+-- drop table orders;
+create table orders(
+	idOrder int auto_increment primary key,
+    idOrderClient int,
+    orderStatus enum ('Cancelado', 'Confirmado', 'Em processamento') default 'Em processamento',
+    orderDescription varchar(255),
+    sendValue float default 10,
+    paymentCash boolean default false,
+    constraint fk_orders_client foreign key (idOrderClient) references Clients(idClient)
+    on update cascade
+);
+
+create table delivery(
+	idDelivery int primary key,
+    DeliveryStatus enum ('Em separação', 'Enviado para entrega', 'Entregue'),
+    TrackingCode char(10),
+    constraint unique_tracking_code unique(TrackingCode),
+    constraint fk_id_Delivery foreign key (idDelivery) references orders(idOrder)
+);
+
+alter table orders auto_increment = 1;
+
+desc orders;
+
+-- criar tabela estoque
+
+create table productStorage(
+	idProdStorage int auto_increment primary key,
+    storageLocation varchar(255),
+    quantity int default 0
+);
+
+alter table productstorage auto_increment = 1;
+
+desc productstorage;
+
+-- criar a tabela fornecedor
+
+create table supplier(
+	idSupplier int auto_increment primary key,
+    SocialName varchar(255) not null,
+    CNPJ char(15) not null,
+    contact char(11) not null,
+    constraint unique_supplier unique (CNPJ)
+);
+
+alter table supplier auto_increment = 1;
+
+desc supplier;
+
+-- criar a tabela vendedor
+
+create table seller(
+	idSeller int auto_increment primary key,
+    SocialName varchar(255) not null,
+    AbstName varchar(255),
+    CNPJ char(15),
+    CPF char(9),
+    location varchar(255),
+    contact char(11) not null,
+    constraint unique_cnpj_seller unique (CNPJ),
+    constraint unique_cpf_seller unique (CPF)
+);
+
+alter table seller auto_increment = 1;
+
+desc seller;
+
+create table productSeller(
+	idPSeller int,
+    idPproduct int,
+    prodQuantity int default 1,
+    primary key (idPSeller, idPproduct),
+    constraint fk_product_seller foreign key (idPSeller) references seller(idSeller),
+    constraint fk_product_product foreign key (idPproduct) references product(idProduct)
+);
+desc productSeller;
+
+create table productOrder(
+	idPOproduct int,
+    idPOorder int,
+    poQuantity int default 1,
+    poStatus enum ('Disponivel', 'Sem estoque') default 'Disponivel',
+    primary key (idPOproduct, idPOorder),
+    constraint fk_productorder_seller foreign key (idPOproduct) references product(idProduct),
+    constraint fk_productorder_product foreign key (idPOorder) references orders(idOrder)
+);
+desc productorder;
+
+create table storageLocation(
+	idLProduct int,
+    idLStorage int,
+    location varchar(255) not null,
+    primary key (idLProduct, idLStorage),
+    constraint fk_storage_location_product foreign key (idLProduct) references product(idProduct),
+    constraint fk_storage_location_storage foreign key (idLStorage) references productStorage(idProdStorage)
+);
+
+desc storagelocation;
+
+create table productSupplier(
+	idPsSupplier int,
+    idPsProduct int,
+    quantity int not null,
+    primary key (idPsSupplier, idPsProduct),
+    constraint fk_product_supplier_supplier foreign key (idPsSupplier) references supplier (idSupplier),
+    constraint fk_product_supplier_product foreign key (idPsProduct) references product (idProduct)
+);
+
+use information_schema;
+show tables;
+desc table_constraints;
+desc referential_constraints;
+select * from referential_constraints where constraint_schema = 'ecommerce';
+
+DROP Procedure ManipularClientePF;
+
+DELIMITER $$
+	CREATE PROCEDURE ManipularClientePF (IN opcao int, IN pidcliente int, IN pFname varchar(15), IN pMinit char(3), IN pLname varchar(15), IN pcpf char(11))
+BEGIN
+    IF opcao = 1 then
+			INSERT INTO ClientPF (idClient_PF, Fname, Minit, Lname, CPF) VALUES (pidcliente, pFname, pMinit, pLname, pcpf);
+		ELSE IF opcao = 2 then
+				UPDATE ClientPF SET Fname = pFname, Minit = pMinit, Lname = pLname, CPF = pCPF
+				WHERE idClient_PF = pidcliente;
+			else IF opcao = 3 then
+				DELETE FROM ClientPF where idClient_PF = pidcliente;
+			END IF;
+        END If;
+	END IF;
+END $$
+DELIMITER ;
+
+select * from ClientPF;
+
+-- CHAMANDO A PROCEDURE PARA INSERIR DADOS NA TABELA ClientPF
+	CALL ManipularClientePF (1, 7, 'Carla', 'T', 'Ferraz', '14403545');
+    
+-- CHAMANDO A PROCEDURE PARA ALTERAR DADOS DA TABELA ClientPF
+	CALL ManipularClientePF (2, 7, 'Lucas', 'F', 'Dolavale', '100245678');   
+    
+-- CHAMANDO A PROCEDURE PARA EXCLUIR DADOS DA TABELA ClientPF
+	CALL ManipularClientePF (3, 7, 'Lucas', 'F', 'Dolavale', '100245678');   
